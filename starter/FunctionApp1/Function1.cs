@@ -59,21 +59,23 @@ namespace FunctionApp1
         #endregion
 
         [Function("SpringerLookup")]
-        public static async Task<IActionResult> Run([HttpTrigger(AuthorizationLevel.Anonymous, "post")] HttpRequest req)
+        public static async Task<IActionResult> Run([HttpTrigger(AuthorizationLevel.Anonymous, "post")] HttpRequest req, ILogger log)
         {
-            //_logger.LogInformation("C# HTTP trigger function processed a request.");
+            log.LogInformation("C# HTTP trigger function processed a request.");
             var response = new WebApiResponse
             {
                 Values = new List<OutputRecord>()
             };
+            log.LogInformation("Read request body");
             string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
-
+            log.LogInformation($"{requestBody}");
             var options = new JsonSerializerOptions
             {
                 PropertyNameCaseInsensitive = true
             };
             var data = JsonSerializer.Deserialize<WebApiRequest>(requestBody, options);
-            
+            log.LogInformation("Parsed body into WebApiRequest object");
+
             // Do some schema validation
             if (data == null)
             {
