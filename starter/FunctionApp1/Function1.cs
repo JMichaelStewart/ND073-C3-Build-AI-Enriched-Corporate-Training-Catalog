@@ -1,42 +1,29 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Net.Http;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Logging;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
+using Microsoft.Extensions.Logging;
 using System.Text.Json;
 
-namespace Udacity.springerlookupdemo
+namespace FunctionApp1
 {
-    
-    public static class SpringerLookup
+    public static class Function1
     {
-        
-        /* 
-
-          This is where you will configure your Spring API Key
-          
-        */
         static readonly string apikey = "5b459e668a6c14dcd8511126e6f5c71e";
         static readonly string springerapiendpoint = "http://api.springernature.com/openaccess/json";
 
         #region Class used to deserialize the request
-        private class InputRecord
+        public class InputRecordData
         {
-            public class InputRecordData
-            {
-                public string ArticleName { get; set; }
-            }
+            public string ArticleName { get; set; }
+        }
 
+        public class InputRecord
+        {
             public string RecordId { get; set; }
             public InputRecordData Data { get; set; }
         }
 
-        private class WebApiRequest
+        public class WebApiRequest
         {
             public List<InputRecord> Values { get; set; }
         }
@@ -72,19 +59,21 @@ namespace Udacity.springerlookupdemo
         #endregion
 
         [Function("SpringerLookup")]
-        public static async Task<IActionResult> Run(
-            [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = null)] HttpRequest req)
+        public static async Task<IActionResult> Run([HttpTrigger(AuthorizationLevel.Anonymous, "post")] HttpRequest req)
         {
-            // log.LogInformation("Entity Search function: C# HTTP trigger function processed a request.");
-
+            //_logger.LogInformation("C# HTTP trigger function processed a request.");
             var response = new WebApiResponse
             {
                 Values = new List<OutputRecord>()
             };
+            string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
 
-            string requestBody = new StreamReader(req.Body).ReadToEnd();
-            var data = JsonSerializer.Deserialize<WebApiRequest>(requestBody);
-
+            var options = new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            };
+            var data = JsonSerializer.Deserialize<WebApiRequest>(requestBody, options);
+            
             // Do some schema validation
             if (data == null)
             {
@@ -129,18 +118,21 @@ namespace Udacity.springerlookupdemo
             }
 
             return (ActionResult)new OkObjectResult(response);
+
+            return new OkObjectResult("Welcome to Azure Functions!");
         }
 
         #region Methods to call the Springer API
-        
-        
+
+
         private async static Task<OutputRecord.OutputRecordData> GetEntityMetadata(string title)
         {
             var uri = springerapiendpoint + "?q=title:\"" + title + "\"&api_key=" + apikey;
             var result = new OutputRecord.OutputRecordData();
 
             using (var client = new HttpClient())
-            using (var request = new HttpRequestMessage {
+            using (var request = new HttpRequestMessage
+            {
                 Method = HttpMethod.Get,
                 RequestUri = new Uri(uri)
             })
@@ -148,22 +140,27 @@ namespace Udacity.springerlookupdemo
                 HttpResponseMessage response = await client.SendAsync(request);
                 string responseBody = await response?.Content?.ReadAsStringAsync();
                 JsonDocument springerresults = JsonDocument.Parse(responseBody);
-                
-                foreach(JsonProperty t in springerresults.RootElement.EnumerateObject()){
-                    switch(t.Name)
+
+                if (springerresults.RootElement.TryGetProperty("records", out JsonElement recordsElement) && recordsElement.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (JsonElement recordElement in recordsElement.EnumerateArray())
                     {
-                        case "doi":
-                            result.DOI = t.Value.ToString();
-                            break;
-                        case "publicationDate":
-                            result.PublicationDate = t.Value.ToString();
-                            break;
-                        case "publicationName":
-                            result.PublicationName = t.Value.ToString(); 
-                            break;
-                        case "publisher":
-                            result.Publisher = t.Value.ToString();
-                            break;
+                        if (recordElement.TryGetProperty("doi", out JsonElement recordIdElement))
+                        {
+                            result.DOI = recordIdElement.GetString();
+                        }
+                        if (recordElement.TryGetProperty("publicationDate", out JsonElement publicationDate))
+                        {
+                            result.PublicationDate = publicationDate.GetString();
+                        }
+                        if (recordElement.TryGetProperty("publicationName", out JsonElement publicationName))
+                        {
+                            result.PublicationName = publicationName.GetString();
+                        }
+                        if (recordElement.TryGetProperty("publisher", out JsonElement publisher))
+                        {
+                            result.Publisher = publisher.GetString();
+                        }
                     }
                 }
             }
@@ -171,7 +168,7 @@ namespace Udacity.springerlookupdemo
             return result;
         }
 
-        
+
         #endregion
     }
 }
