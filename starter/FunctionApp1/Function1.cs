@@ -6,10 +6,16 @@ using System.Text.Json;
 
 namespace FunctionApp1
 {
-    public static class Function1
+    public class Function1
     {
+        private readonly ILogger<Function1> _logger;
         static readonly string apikey = "5b459e668a6c14dcd8511126e6f5c71e";
         static readonly string springerapiendpoint = "http://api.springernature.com/openaccess/json";
+
+        public Function1(ILogger<Function1> logger)
+        {
+            _logger = logger;
+        }
 
         #region Class used to deserialize the request
         public class InputRecordData
@@ -59,69 +65,77 @@ namespace FunctionApp1
         #endregion
 
         [Function("SpringerLookup")]
-        public static async Task<IActionResult> Run([HttpTrigger(AuthorizationLevel.Anonymous, "post")] HttpRequest req, ILogger log)
+        public async Task<IActionResult> Run([HttpTrigger(AuthorizationLevel.Anonymous, "post")] HttpRequest req)
         {
-            log.LogInformation("C# HTTP trigger function processed a request.");
-            var response = new WebApiResponse
+            try
             {
-                Values = new List<OutputRecord>()
-            };
-            log.LogInformation("Read request body");
-            string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
-            log.LogInformation($"{requestBody}");
-            var options = new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            };
-            var data = JsonSerializer.Deserialize<WebApiRequest>(requestBody, options);
-            log.LogInformation("Parsed body into WebApiRequest object");
-
-            // Do some schema validation
-            if (data == null)
-            {
-                return new BadRequestObjectResult("The request schema does not match expected schema.");
-            }
-            if (data.Values == null)
-            {
-                return new BadRequestObjectResult("The request schema does not match expected schema. Could not find values array.");
-            }
-
-            // Calculate the response for each value.
-            foreach (var record in data.Values)
-            {
-                if (record == null || record.RecordId == null) continue;
-
-                OutputRecord responseRecord = new OutputRecord
+                _logger.LogInformation("C# HTTP trigger function processed a request.");
+                var response = new WebApiResponse
                 {
-                    RecordId = record.RecordId
+                    Values = new List<OutputRecord>()
                 };
+                _logger.LogInformation("Read request body");
+                string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
+                _logger.LogInformation($"{requestBody}");
+                var options = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                };
+                var data = JsonSerializer.Deserialize<WebApiRequest>(requestBody, options);
+                _logger.LogInformation("Parsed body into WebApiRequest object");
 
-                try
+                // Do some schema validation
+                if (data == null)
                 {
-                    responseRecord.Data = GetEntityMetadata(record.Data.ArticleName).Result;
+                    return new BadRequestObjectResult("The request schema does not match expected schema.");
                 }
-                catch (Exception e)
+                if (data.Values == null)
                 {
-                    // Something bad happened, log the issue.
-                    var error = new OutputRecord.OutputRecordMessage
+                    return new BadRequestObjectResult("The request schema does not match expected schema. Could not find values array.");
+                }
+
+                // Calculate the response for each value.
+                foreach (var record in data.Values)
+                {
+                    if (record == null || record.RecordId == null) continue;
+
+                    OutputRecord responseRecord = new OutputRecord
                     {
-                        Message = e.Message
+                        RecordId = record.RecordId
                     };
 
-                    responseRecord.Errors = new List<OutputRecord.OutputRecordMessage>
+                    try
+                    {
+                        responseRecord.Data = GetEntityMetadata(record.Data.ArticleName).Result;
+                    }
+                    catch (Exception e)
+                    {
+                        // Something bad happened, log the issue.
+                        var error = new OutputRecord.OutputRecordMessage
+                        {
+                            Message = e.Message
+                        };
+
+                        responseRecord.Errors = new List<OutputRecord.OutputRecordMessage>
                     {
                         error
                     };
+                    }
+                    finally
+                    {
+                        response.Values.Add(responseRecord);
+                    }
                 }
-                finally
-                {
-                    response.Values.Add(responseRecord);
-                }
+
+                return (ActionResult)new OkObjectResult(response);
+
+            }
+            catch (Exception e)
+            {
+                _logger.LogError($"Error: {e}");
+                return (ActionResult) new BadRequestObjectResult("Unable to process request");
             }
 
-            return (ActionResult)new OkObjectResult(response);
-
-            return new OkObjectResult("Welcome to Azure Functions!");
         }
 
         #region Methods to call the Springer API
