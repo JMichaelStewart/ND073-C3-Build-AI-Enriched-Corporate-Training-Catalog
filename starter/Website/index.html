@@ -99,9 +99,9 @@
         serviceUrl is found in the Overview
     */
     const opts = {
-        headers: {'Content-Type': 'application/json', 'api-key':'<insert key here>'}
+        headers: {'Content-Type': 'application/json', 'api-key':'VccXQQP2dC7ia3CaQkxAEnB2dpCcNOWmK0wfh9VqTXAzSeAD4Hm5'}
     }
-    const serviceUrl = 'https://<insert service name here>.search.windows.net'
+    const serviceUrl = 'https://training-catalog-jms.search.windows.net'
     
     /* 
         This demo app uses Vue.js, a progressive framework for building user interfaces.  
@@ -128,17 +128,27 @@
         */
         methods: {
             doSearch: function(event){
+				const requestBody = {
+					search: this.searchTerm,
+					filter: this.filter,
+					facets: ['level']
+				};
+				
                 axios
-                    .get(`${this.baseUrl}&search=${encodeURIComponent(this.searchTerm)}&${this.filter}&facet=level`, opts)
+                    .post(`${this.baseUrl}`, requestBody, opts)
                     .then(response => {
                         this.results = response.data.value; 
                         this.availableFacets = response.data['@search.facets'].level;
                     })
             },
             doRefresh: function(event){
+				const requestBody = {
+					search: this.searchTerm,
+					filter: this.filter
+				};
+				
                 axios
-                    .get(`${this.baseUrl}&search=${encodeURIComponent(this.searchTerm)}&${this.filter}`,
-                        opts)
+                    .post(`${this.baseUrl}`, requestBody, opts)
                     .then(response => {
                         this.results = response.data.value; 
                     })
@@ -150,14 +160,14 @@
                 and then, if facets have been selected by the users, add those as a pipe delimited string.
             */
             filter: function(){
-                f = `$filter=rating_average%20ge%20${this.rating_average}`;
+                f = `rating_average ge ${this.rating_average}`;
                 if(this.myfacets && this.myfacets.length > 0){
                     f += `and search.in(level, '${this.myfacets.join('|')}' ,'|')`;
                 }
                 return f;
             },
             baseUrl: function(){
-                return `${serviceUrl}/indexes/azuretable-index/docs?api-version=2020-06-30`
+                return `${serviceUrl}/indexes/azuretable-index/docs/search?api-version=2024-05-01-preview`
             }
         }
     })
