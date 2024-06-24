@@ -1,0 +1,16 @@
+User can search for training sources across all data sources
+User can filter training by data sources
+User can filter training by keywords and phrases from the description
+User can filter training by rating
+User can filter training by duration
+User can facet training by sources
+User can facet training by skills
+User can facet data by role
+User can sort data by rating
+User can sort data by skills
+User can sort data by duration
+User can sort data by source
+User can filter journal articles by author
+User can filter journal articles by associated institution
+User can filter journal articles by publisher
+User can filter journal articles by publication date

@@ -1,0 +1,31 @@
+{
+  "@odata.context": "https://training-catalog-jms.search.windows.net/$metadata#indexers/$entity",
+  "@odata.etag": "\"0x8DC92FC92A37107\"",
+  "name": "azuretable-indexer",
+  "description": "",
+  "dataSourceName": "courses",
+  "skillsetName": "azuretable-skillset",
+  "targetIndexName": "azuretable-index",
+  "disabled": null,
+  "schedule": null,
+  "parameters": {
+    "batchSize": null,
+    "maxFailedItems": 0,
+    "maxFailedItemsPerBatch": 0,
+    "base64EncodeKeys": false,
+    "configuration": {}
+  },
+  "fieldMappings": [],
+  "outputFieldMappings": [
+    {
+      "sourceFieldName": "/document/PartitionKey/keyphrases",
+      "targetFieldName": "keyphrases"
+    },
+    {
+      "sourceFieldName": "/document/instructorProfiles",
+      "targetFieldName": "instructorEntities"
+    }
+  ],
+  "cache": null,
+  "encryptionKey": null
+}
